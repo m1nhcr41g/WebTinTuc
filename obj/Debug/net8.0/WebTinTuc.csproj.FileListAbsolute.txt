@@ -56,3 +56,4 @@ F:\WebTinTuc\WebTinTuc\obj\Debug\net8.0\refint\WebTinTuc.dll
 F:\WebTinTuc\WebTinTuc\obj\Debug\net8.0\WebTinTuc.pdb
 F:\WebTinTuc\WebTinTuc\obj\Debug\net8.0\WebTinTuc.genruntimeconfig.cache
 F:\WebTinTuc\WebTinTuc\obj\Debug\net8.0\ref\WebTinTuc.dll
+F:\WebTinTuc\WebTinTuc\obj\Debug\net8.0\WebTinTuc.sourcelink.json
