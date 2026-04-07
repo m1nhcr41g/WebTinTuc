@@ -24,47 +24,17 @@ public class NewsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? category, string? tag)
+    public async Task<IActionResult> Index(string? category)
     {
-        var normalizedCategory = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
-        var normalizedTag = string.IsNullOrWhiteSpace(tag) ? null : tag.Trim();
-
-        var categorySections = (await _articleStore.GetCategorySectionsAsync(3))
-            .OrderByDescending(section => section.TotalViewCount)
-            .ThenBy(section => section.CategoryName)
-            .ToList();
-
-        var filteredArticles = new List<JournalistArticle>();
-        if (!string.IsNullOrWhiteSpace(normalizedTag))
-        {
-            filteredArticles = await _articleStore.GetArticlesByTagAsync(normalizedTag, 24);
-        }
-        else if (!string.IsNullOrWhiteSpace(normalizedCategory))
-        {
-            filteredArticles = await _articleStore.GetArticlesByCategorySlugAsync(normalizedCategory, 24);
-        }
-
-        var selectedCategoryName = categorySections
-            .FirstOrDefault(section => section.CategorySlug.Equals(normalizedCategory, StringComparison.OrdinalIgnoreCase))
-            ?.CategoryName;
-
-        if (string.IsNullOrWhiteSpace(selectedCategoryName) && filteredArticles.Count > 0)
-        {
-            selectedCategoryName = filteredArticles[0].CategoryName;
-        }
+        var categorySections = await _articleStore.GetCategorySectionsAsync(6, category);
 
         var viewModel = new NewsIndexViewModel
         {
-            SelectedCategorySlug = normalizedCategory,
-            SelectedCategoryName = selectedCategoryName,
-            SelectedTag = normalizedTag,
-            FilteredArticles = filteredArticles,
+            SelectedCategorySlug = string.IsNullOrWhiteSpace(category) ? null : category.Trim(),
+            SelectedCategoryName = categorySections.FirstOrDefault()?.CategoryName,
             HotArticles = await _articleStore.GetHotArticlesAsync(6),
             LatestArticles = await _articleStore.GetLatestArticlesAsync(8),
-            CategorySections = categorySections,
-            TagMatchedArticles = string.IsNullOrWhiteSpace(normalizedTag)
-                ? new List<JournalistArticle>()
-                : filteredArticles
+            CategorySections = categorySections
         };
 
         if (User.Identity?.IsAuthenticated == true && User.IsInRole("User"))
