@@ -17,7 +17,7 @@
     <header>
         <nav class="navbar navbar-expand-lg newsroom-navbar">
             <div class="container-fluid newsroom-navbar-inner">
-                <a class="newsroom-logo" asp-area="" asp-controller="Home" asp-action="Index">Trust Me Bro</a>
+                <a class="newsroom-logo" asp-area="" asp-controller="Home" asp-action="Index">WEBTINTUC</a>
                 <button class="navbar-toggler newsroom-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#newsroomNav" aria-controls="newsroomNav"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -60,53 +60,17 @@
                     <ul class="navbar-nav newsroom-auth-links">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            var displayName = User.Identity.Name ?? "User";
-                            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? string.Empty;
-                            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
-                            var avatarPath = User.FindFirst("avatar_path")?.Value;
-                            var initials = string.Concat(displayName
-                                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                                .Take(2)
-                                .Select(part => char.ToUpperInvariant(part[0])));
-                            if (string.IsNullOrWhiteSpace(initials))
-                            {
-                                initials = "U";
-                            }
-
-                            <li class="nav-item dropdown account-dropdown">
-                                <button class="btn nav-link account-avatar-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" aria-label="Mo menu tai khoan">
-                                    @if (!string.IsNullOrWhiteSpace(avatarPath))
-                                    {
-                                        <img src="@avatarPath" alt="Avatar" class="account-avatar-img" />
-                                    }
-                                    else
-                                    {
-                                        <span class="account-avatar-badge">@initials</span>
-                                    }
-                                </button>
-                                <div class="dropdown-menu dropdown-menu-end account-dropdown-menu">
-                                    <div class="account-dropdown-head">
-                                        <div class="account-name">@displayName</div>
-                                        @if (!string.IsNullOrWhiteSpace(email))
-                                        {
-                                            <div class="account-email">@email</div>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(role))
-                                        {
-                                            <div class="account-role">@role</div>
-                                        }
-                                    </div>
-                                    <div class="account-dropdown-actions">
-                                        <a class="dropdown-item" asp-controller="Account" asp-action="Manage">Quan li tai khoan</a>
-                                        <form asp-controller="Auth" asp-action="Logout" method="post" class="d-block account-logout-form">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" class="dropdown-item account-logout-btn">Dang xuat</button>
-                                        </form>
-                                    </div>
-                                </div>
+                            <li class="nav-item">
+                                <span class="nav-link">@User.Identity.Name (@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value)</span>
+                            </li>
+                            <li class="nav-item">
+                                <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-link nav-link">Dang xuat</button>
+                                </form>
                             </li>
                         }
-                        else
+                        else if (!Context.Request.Path.StartsWithSegments("/Admin"))
                         {
                             <li class="nav-item">
                                 <a class="nav-link" asp-controller="Auth" asp-action="Login">Log in</a>

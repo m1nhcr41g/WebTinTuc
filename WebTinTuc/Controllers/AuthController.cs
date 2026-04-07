@@ -41,7 +41,7 @@ public class AuthController : Controller
             return View(model);
         }
 
-        await SignInAsync(account.Id, account.FullName, account.Email, account.Role, account.AvatarPath, model.RememberMe);
+        await SignInAsync(account.Id, account.FullName, account.Email, account.Role, model.RememberMe);
 
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
         {
@@ -76,7 +76,7 @@ public class AuthController : Controller
 
         if (model.Role == "User")
         {
-            await SignInAsync(accountId, model.FullName.Trim(), model.Email.Trim(), model.Role, null, false);
+            await SignInAsync(accountId, model.FullName.Trim(), model.Email.Trim(), model.Role, false);
             return RedirectToAction("Setup", "UserPreferences");
         }
 
@@ -92,7 +92,7 @@ public class AuthController : Controller
         return RedirectToAction("Index", "Home");
     }
 
-    private async Task SignInAsync(long accountId, string fullName, string email, string role, string? avatarPath, bool rememberMe)
+    private async Task SignInAsync(long accountId, string fullName, string email, string role, bool rememberMe)
     {
         var claims = new List<Claim>
         {
@@ -101,11 +101,6 @@ public class AuthController : Controller
             new(ClaimTypes.Email, email),
             new(ClaimTypes.Role, role)
         };
-
-        if (!string.IsNullOrWhiteSpace(avatarPath))
-        {
-            claims.Add(new Claim("avatar_path", avatarPath));
-        }
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
