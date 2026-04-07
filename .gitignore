@@ -1,7 +1,6 @@
-# Build outputs
-[Bb]in/
-[Oo]bj/
-out/
+# Build artifacts
+**/bin/
+**/obj/
 
 # Visual Studio
 .vs/
@@ -12,32 +11,28 @@ out/
 
 # Rider / ReSharper
 .idea/
+*.sln.iml
 _ReSharper*/
 *.[Rr]e[Ss]harper
 
-# NuGet
-*.nupkg
-packages/
-!**/packages/build/
+# VS Code workspace settings (optional local)
+.vscode/
 
 # Logs
 *.log
-logs/
 
-# Environment and local secrets
-.env
-.env.*
-secrets.json
-
-# Local debug/test artifacts in this project
-WebTinTuc/cookies_debug2.txt
-WebTinTuc/cookies_test2.txt
-WebTinTuc/create_debug_resp.html
-
-# Generated/static user uploads
-WebTinTuc/wwwroot/uploads/*
-!WebTinTuc/wwwroot/uploads/.gitkeep
-
-# OS files
+# OS generated files
 .DS_Store
 Thumbs.db
+
+# NuGet packages cache folder (if present in repo)
+packages/
+
+# Test and coverage outputs
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Temporary git backups
+**/.git_backup_inner_*/

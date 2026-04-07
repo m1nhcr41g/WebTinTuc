@@ -20,6 +20,8 @@ public class JournalistArticle
 
     public string Summary { get; set; } = string.Empty;
 
+    public string ThumbnailUrl { get; set; } = string.Empty;
+
     public string Content { get; set; } = string.Empty;
 
     public DateTime CreatedAtUtc { get; set; }

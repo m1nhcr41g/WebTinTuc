@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using WebTinTuc.Models.Articles;
+using System.Text.RegularExpressions;
 
 namespace WebTinTuc.Services.Articles;
 
@@ -28,6 +29,7 @@ public class JournalistArticleStore
                 slug TEXT NOT NULL DEFAULT '',
                 category_id TEXT NULL,
                 summary TEXT NOT NULL DEFAULT '',
+                thumbnail_url TEXT NOT NULL DEFAULT 'WebTinTuc\wwwroot\images\default-thumb.jpg',
                 content TEXT NOT NULL,
                 view_count INTEGER NOT NULL DEFAULT 0,
                 created_at_utc TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -56,8 +58,10 @@ public class JournalistArticleStore
         await EnsureViewCountColumnAsync(connection);
         await EnsureSlugColumnAsync(connection);
         await EnsureCategoryIdColumnAsync(connection);
+        await EnsureThumbnailUrlColumnAsync(connection);
         await EnsureJournalistArticleTagsTagIdTextAsync(connection);
         await BackfillMissingSlugsAsync(connection);
+        await BackfillMissingThumbnailsAsync(connection);
 
         await using var indexCommand = connection.CreateCommand();
         indexCommand.CommandText = @"
@@ -80,8 +84,8 @@ public class JournalistArticleStore
 
         await using var command = connection.CreateCommand();
         command.CommandText = $@"
-                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.content, a.created_at_utc, a.updated_at_utc,
-                   a.view_count,
+                                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                                     a.view_count,
                      {tagsSelect} AS tags_text,
                      a.category_id,
                      {BuildCategoryNameSelect("a")} AS category_name,
@@ -110,8 +114,8 @@ public class JournalistArticleStore
 
         await using var command = connection.CreateCommand();
         command.CommandText = $@"
-                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.content, a.created_at_utc, a.updated_at_utc,
-                   a.view_count,
+                                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                                     a.view_count,
                      {tagsSelect} AS tags_text,
                      a.category_id,
                      {BuildCategoryNameSelect("a")} AS category_name,
@@ -143,13 +147,14 @@ public class JournalistArticleStore
 
         await using var command = connection.CreateCommand();
         command.CommandText = $@"
-                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.content, a.created_at_utc, a.updated_at_utc,
-                   a.view_count,
+                                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                                     a.view_count,
                      {tagsSelect} AS tags_text,
                      a.category_id,
                      {BuildCategoryNameSelect("a")} AS category_name,
                      {BuildCategorySlugSelect("a")} AS category_slug
             FROM journalist_articles a
+                        WHERE a.view_count > 0
             ORDER BY a.view_count DESC, datetime(a.created_at_utc) DESC
             LIMIT $limit;";
         command.Parameters.AddWithValue("$limit", limit);
@@ -175,8 +180,8 @@ public class JournalistArticleStore
 
         await using var command = connection.CreateCommand();
         command.CommandText = $@"
-                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.content, a.created_at_utc, a.updated_at_utc,
-                   a.view_count,
+                                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                                     a.view_count,
                      {tagsSelect} AS tags_text,
                      a.category_id,
                      {BuildCategoryNameSelect("a")} AS category_name,
@@ -184,6 +189,96 @@ public class JournalistArticleStore
             FROM journalist_articles a
             ORDER BY datetime(a.created_at_utc) DESC
             LIMIT $limit;";
+        command.Parameters.AddWithValue("$limit", limit);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            result.Add(MapArticle(reader));
+        }
+
+        return result;
+    }
+
+    public async Task<List<JournalistArticle>> GetArticlesByTagAsync(string tagName, int limit)
+    {
+        if (string.IsNullOrWhiteSpace(tagName))
+        {
+            return new List<JournalistArticle>();
+        }
+
+        var result = new List<JournalistArticle>();
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var displayColumn = await GetTagDisplayColumnAsync(connection);
+        if (displayColumn is null)
+        {
+            return result;
+        }
+
+        var tagsSelect = BuildTagsSelect(displayColumn, "a");
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $@"
+            SELECT DISTINCT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                   a.view_count,
+                   {tagsSelect} AS tags_text,
+                   a.category_id,
+                   {BuildCategoryNameSelect("a")} AS category_name,
+                   {BuildCategorySlugSelect("a")} AS category_slug
+            FROM journalist_articles a
+            JOIN journalist_article_tags jat ON jat.article_id = a.id
+            JOIN tags t ON t.id = jat.tag_id
+            WHERE lower(trim(t.{displayColumn})) = lower(trim($tagName))
+            ORDER BY datetime(a.created_at_utc) DESC
+            LIMIT $limit;";
+        command.Parameters.AddWithValue("$tagName", tagName.Trim());
+        command.Parameters.AddWithValue("$limit", limit);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            result.Add(MapArticle(reader));
+        }
+
+        return result;
+    }
+
+    public async Task<List<JournalistArticle>> GetArticlesByCategorySlugAsync(string categorySlug, int limit)
+    {
+        if (string.IsNullOrWhiteSpace(categorySlug))
+        {
+            return new List<JournalistArticle>();
+        }
+
+        var result = new List<JournalistArticle>();
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var displayColumn = await GetTagDisplayColumnAsync(connection);
+        var tagsSelect = BuildTagsSelect(displayColumn, "a");
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $@"
+            SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                   a.view_count,
+                   {tagsSelect} AS tags_text,
+                   a.category_id,
+                   {BuildCategoryNameSelect("a")} AS category_name,
+                   {BuildCategorySlugSelect("a")} AS category_slug
+            FROM journalist_articles a
+            WHERE a.category_id = (
+                SELECT id
+                FROM categories
+                WHERE lower(slug) = lower($categorySlug)
+                LIMIT 1
+            )
+            ORDER BY datetime(a.created_at_utc) DESC
+            LIMIT $limit;";
+        command.Parameters.AddWithValue("$categorySlug", categorySlug.Trim());
         command.Parameters.AddWithValue("$limit", limit);
 
         await using var reader = await command.ExecuteReaderAsync();
@@ -237,8 +332,8 @@ public class JournalistArticleStore
         command.Parameters.AddWithValue("$limit", limit);
 
         command.CommandText = $@"
-                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.content, a.created_at_utc, a.updated_at_utc,
-                   a.view_count,
+                                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                                     a.view_count,
                    {tagsSelect} AS tags_text,
                      a.category_id,
                      {BuildCategoryNameSelect("a")} AS category_name,
@@ -300,7 +395,7 @@ public class JournalistArticleStore
         {
             await using var articlesCommand = connection.CreateCommand();
             articlesCommand.CommandText = $@"
-                  SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.content, a.created_at_utc, a.updated_at_utc,
+                   SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
                        a.view_count,
                       {tagsSelect} AS tags_text,
                       a.category_id,
@@ -344,8 +439,8 @@ public class JournalistArticleStore
 
         await using var command = connection.CreateCommand();
         command.CommandText = $@"
-            SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.content, a.created_at_utc, a.updated_at_utc,
-                   a.view_count,
+                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                     a.view_count,
                      {tagsSelect} AS tags_text,
                      a.category_id,
                      {BuildCategoryNameSelect("a")} AS category_name,
@@ -374,8 +469,8 @@ public class JournalistArticleStore
 
         await using var command = connection.CreateCommand();
         command.CommandText = $@"
-            SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.content, a.created_at_utc, a.updated_at_utc,
-                   a.view_count,
+                 SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                     a.view_count,
                      {tagsSelect} AS tags_text,
                      a.category_id,
                      {BuildCategoryNameSelect("a")} AS category_name,
@@ -419,8 +514,8 @@ public class JournalistArticleStore
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = @"
-            INSERT INTO journalist_articles (author_account_id, author_name, title, slug, category_id, summary, content)
-            VALUES ($authorAccountId, $authorName, $title, $slug, $categoryId, $summary, $content);
+            INSERT INTO journalist_articles (author_account_id, author_name, title, slug, category_id, summary, thumbnail_url, content)
+            VALUES ($authorAccountId, $authorName, $title, $slug, $categoryId, $summary, $thumbnailUrl, $content);
             SELECT last_insert_rowid();";
         command.Parameters.AddWithValue("$authorAccountId", authorAccountId);
         command.Parameters.AddWithValue("$authorName", authorName);
@@ -428,6 +523,7 @@ public class JournalistArticleStore
         command.Parameters.AddWithValue("$slug", slug);
         command.Parameters.AddWithValue("$categoryId", string.IsNullOrWhiteSpace(model.CategoryId) ? DBNull.Value : model.CategoryId.Trim());
         command.Parameters.AddWithValue("$summary", (model.Summary ?? string.Empty).Trim());
+        command.Parameters.AddWithValue("$thumbnailUrl", model.ThumbnailUrl.Trim());
         command.Parameters.AddWithValue("$content", model.Content.Trim());
 
         var result = await command.ExecuteScalarAsync();
@@ -455,6 +551,7 @@ public class JournalistArticleStore
                 slug = $slug,
                 category_id = $categoryId,
                 summary = $summary,
+                thumbnail_url = $thumbnailUrl,
                 content = $content,
                 updated_at_utc = CURRENT_TIMESTAMP
             WHERE id = $id AND author_account_id = $authorAccountId;";
@@ -465,6 +562,7 @@ public class JournalistArticleStore
         command.Parameters.AddWithValue("$slug", slug);
         command.Parameters.AddWithValue("$categoryId", string.IsNullOrWhiteSpace(model.CategoryId) ? DBNull.Value : model.CategoryId.Trim());
         command.Parameters.AddWithValue("$summary", (model.Summary ?? string.Empty).Trim());
+        command.Parameters.AddWithValue("$thumbnailUrl", model.ThumbnailUrl.Trim());
         command.Parameters.AddWithValue("$content", model.Content.Trim());
 
         var affectedRows = await command.ExecuteNonQueryAsync();
@@ -585,10 +683,18 @@ public class JournalistArticleStore
 
         foreach (var category in categories)
         {
+            await using var totalViewsCommand = connection.CreateCommand();
+            totalViewsCommand.CommandText = @"
+                SELECT COALESCE(SUM(view_count), 0)
+                FROM journalist_articles
+                WHERE category_id = $categoryId;";
+            totalViewsCommand.Parameters.AddWithValue("$categoryId", category.Id);
+            var totalViewCount = Convert.ToInt64(await totalViewsCommand.ExecuteScalarAsync());
+
             await using var command = connection.CreateCommand();
             command.CommandText = $@"
-                SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.content, a.created_at_utc, a.updated_at_utc,
-                       a.view_count,
+                  SELECT a.id, a.author_account_id, a.author_name, a.title, a.slug, a.summary, a.thumbnail_url, a.content, a.created_at_utc, a.updated_at_utc,
+                      a.view_count,
                        {tagsSelect} AS tags_text,
                        a.category_id,
                        {BuildCategoryNameSelect("a")} AS category_name,
@@ -617,6 +723,7 @@ public class JournalistArticleStore
                 CategoryId = category.Id,
                 CategoryName = category.Name,
                 CategorySlug = category.Slug,
+                TotalViewCount = totalViewCount,
                 Articles = articles
             });
         }
@@ -658,14 +765,15 @@ public class JournalistArticleStore
             Title = reader.GetString(3),
             Slug = reader.GetString(4),
             Summary = reader.GetString(5),
-            Content = reader.GetString(6),
-            CreatedAtUtc = ParseSqliteDateTime(reader.GetString(7)),
-            UpdatedAtUtc = reader.IsDBNull(8) ? null : ParseSqliteDateTime(reader.GetString(8)),
-            ViewCount = reader.IsDBNull(9) ? 0 : reader.GetInt32(9),
-            TagsText = reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
-            CategoryId = reader.IsDBNull(11) ? null : reader.GetString(11),
-            CategoryName = reader.IsDBNull(12) ? string.Empty : reader.GetString(12),
-            CategorySlug = reader.IsDBNull(13) ? string.Empty : reader.GetString(13)
+            ThumbnailUrl = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+            Content = reader.GetString(7),
+            CreatedAtUtc = ParseSqliteDateTime(reader.GetString(8)),
+            UpdatedAtUtc = reader.IsDBNull(9) ? null : ParseSqliteDateTime(reader.GetString(9)),
+            ViewCount = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
+            TagsText = reader.IsDBNull(11) ? string.Empty : reader.GetString(11),
+            CategoryId = reader.IsDBNull(12) ? null : reader.GetString(12),
+            CategoryName = reader.IsDBNull(13) ? string.Empty : reader.GetString(13),
+            CategorySlug = reader.IsDBNull(14) ? string.Empty : reader.GetString(14)
         };
     }
 
@@ -739,6 +847,33 @@ public class JournalistArticleStore
         {
             await using var alterCommand = connection.CreateCommand();
             alterCommand.CommandText = "ALTER TABLE journalist_articles ADD COLUMN category_id TEXT NULL;";
+            await alterCommand.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static async Task EnsureThumbnailUrlColumnAsync(SqliteConnection connection)
+    {
+        await using var pragmaCommand = connection.CreateCommand();
+        pragmaCommand.CommandText = "PRAGMA table_info(journalist_articles);";
+
+        var hasThumbnailUrl = false;
+        await using (var reader = await pragmaCommand.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                var columnName = reader.GetString(1);
+                if (columnName.Equals("thumbnail_url", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasThumbnailUrl = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasThumbnailUrl)
+        {
+            await using var alterCommand = connection.CreateCommand();
+            alterCommand.CommandText = "ALTER TABLE journalist_articles ADD COLUMN thumbnail_url TEXT NOT NULL DEFAULT '/images/default-thumb.svg';";
             await alterCommand.ExecuteNonQueryAsync();
         }
     }
@@ -887,6 +1022,46 @@ public class JournalistArticleStore
         await transaction.CommitAsync();
     }
 
+    private static async Task BackfillMissingThumbnailsAsync(SqliteConnection connection)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT id, content
+            FROM journalist_articles
+            WHERE thumbnail_url IS NULL OR trim(thumbnail_url) = ''
+            ORDER BY id;";
+
+        var toUpdate = new List<(long Id, string Content)>();
+        await using (var reader = await command.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                toUpdate.Add((reader.GetInt64(0), reader.IsDBNull(1) ? string.Empty : reader.GetString(1)));
+            }
+        }
+
+        if (toUpdate.Count == 0)
+        {
+            return;
+        }
+
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync();
+        foreach (var item in toUpdate)
+        {
+            var extractedUrl = ExtractFirstImageUrl(item.Content);
+            var finalUrl = string.IsNullOrWhiteSpace(extractedUrl) ? "/images/default-thumb.svg" : extractedUrl;
+
+            await using var updateCommand = connection.CreateCommand();
+            updateCommand.Transaction = transaction;
+            updateCommand.CommandText = "UPDATE journalist_articles SET thumbnail_url = $thumbnailUrl WHERE id = $id;";
+            updateCommand.Parameters.AddWithValue("$thumbnailUrl", finalUrl);
+            updateCommand.Parameters.AddWithValue("$id", item.Id);
+            await updateCommand.ExecuteNonQueryAsync();
+        }
+
+        await transaction.CommitAsync();
+    }
+
     private async Task<string> GenerateUniqueSlugAsync(
         SqliteConnection connection,
         SqliteTransaction? transaction,
@@ -1015,7 +1190,7 @@ public class JournalistArticleStore
     {
         return tagsInput
             .Split([',', ';', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(name => name.Trim())
+            .Select(NormalizeTagName)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -1129,17 +1304,34 @@ public class JournalistArticleStore
         string displayColumn,
         string tagName)
     {
+        var normalizedTarget = NormalizeTagName(tagName);
+        if (string.IsNullOrWhiteSpace(normalizedTarget))
+        {
+            return null;
+        }
+
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = $@"
-            SELECT id
-            FROM tags
-            WHERE lower(trim({displayColumn})) = lower(trim($name))
-            LIMIT 1;";
-        command.Parameters.AddWithValue("$name", tagName);
+            SELECT id, {displayColumn}
+            FROM tags;";
 
-        var existing = await command.ExecuteScalarAsync();
-        return existing?.ToString();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            if (reader.IsDBNull(1))
+            {
+                continue;
+            }
+
+            var existingName = NormalizeTagName(reader.GetString(1));
+            if (existingName.Equals(normalizedTarget, StringComparison.OrdinalIgnoreCase))
+            {
+                return reader.GetString(0);
+            }
+        }
+
+        return null;
     }
 
     private async Task<string?> GetTagDisplayColumnAsync(SqliteConnection connection)
@@ -1193,6 +1385,31 @@ public class JournalistArticleStore
         }
 
         return slug.Trim('-');
+    }
+
+    private static string NormalizeTagName(string input)
+    {
+        var value = (input ?? string.Empty).Trim();
+        value = value.TrimStart('#').Trim();
+        value = Regex.Replace(value, "\\s+", " ");
+        return value.ToLowerInvariant();
+    }
+
+    private static string? ExtractFirstImageUrl(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(html, "<img[^>]*src\\s*=\\s*['\"](?<src>[^'\"]+)['\"][^>]*>", RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var src = match.Groups["src"].Value.Trim();
+        return string.IsNullOrWhiteSpace(src) ? null : src;
     }
 
     private sealed class TagColumnInfo

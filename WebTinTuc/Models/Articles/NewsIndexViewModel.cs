@@ -6,9 +6,15 @@ public class NewsIndexViewModel
 
     public string? SelectedCategoryName { get; set; }
 
+    public string? SelectedTag { get; set; }
+
+    public List<JournalistArticle> FilteredArticles { get; set; } = new();
+
     public List<JournalistArticle> HotArticles { get; set; } = new();
 
     public List<JournalistArticle> LatestArticles { get; set; } = new();
+
+    public List<JournalistArticle> TagMatchedArticles { get; set; } = new();
 
     public List<NewsCategorySectionViewModel> CategorySections { get; set; } = new();
 

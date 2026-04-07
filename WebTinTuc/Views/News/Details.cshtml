@@ -14,7 +14,13 @@
         </div>
         @if (!string.IsNullOrWhiteSpace(Model.Article.TagsText))
         {
-            <p class="mt-2 mb-0"><strong>Tags:</strong> @Model.Article.TagsText</p>
+            <div class="mt-2 mb-0 d-flex flex-wrap gap-2 align-items-center">
+                <strong>Tags:</strong>
+                @foreach (var tag in Model.Article.TagsText.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(tag => tag.Trim()).Where(tag => !string.IsNullOrWhiteSpace(tag)).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    <a asp-controller="News" asp-action="Index" asp-route-tag="@tag" class="tag-chip">#@tag</a>
+                }
+            </div>
         }
     </header>
 

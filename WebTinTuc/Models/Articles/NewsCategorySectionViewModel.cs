@@ -8,5 +8,7 @@ public class NewsCategorySectionViewModel
 
     public string CategorySlug { get; set; } = string.Empty;
 
+    public long TotalViewCount { get; set; }
+
     public List<JournalistArticle> Articles { get; set; } = new();
 }

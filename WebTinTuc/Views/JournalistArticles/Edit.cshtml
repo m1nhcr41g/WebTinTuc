@@ -7,7 +7,7 @@
 <h1 class="h3 mb-3">Sua bai viet</h1>
 
 <div class="article-form-shell">
-    <form asp-action="Edit" asp-route-id="@Model.Id" method="post" class="article-form-card">
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="article-form-card">
         <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
 
         <div class="article-form-grid">
@@ -22,6 +22,19 @@
                     <label asp-for="Summary" class="form-label"></label>
                     <textarea asp-for="Summary" class="form-control" rows="3"></textarea>
                     <span asp-validation-for="Summary" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ThumbnailUrl" class="form-label"></label>
+                    @if (!string.IsNullOrWhiteSpace(Model.ThumbnailUrl))
+                    {
+                        <div class="mb-2">
+                            <img src="@Model.ThumbnailUrl" alt="Thumbnail hien tai" class="article-thumb-preview" />
+                        </div>
+                    }
+                    <input asp-for="ThumbnailFile" type="file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+                    <div class="form-text">Neu khong chon anh moi, he thong giu lai thumbnail hien tai.</div>
+                    <span asp-validation-for="ThumbnailFile" class="text-danger"></span>
                 </div>
 
                 <div class="mb-3">
@@ -46,34 +59,21 @@
                 </div>
 
                 <div class="article-form-panel mb-3">
-                    <label class="form-label">Tags co san (khong bat buoc)</label>
-                    @if (Model.AvailableTags.Count == 0)
-                    {
-                        <div class="text-muted small">Chua co tag nao trong he thong.</div>
-                    }
-                    else
-                    {
-                        <div class="d-flex flex-wrap gap-2">
-                            @foreach (var tag in Model.AvailableTags)
-                            {
-                                <div class="form-check border rounded px-2 py-1">
-                                    <input class="form-check-input" type="checkbox" name="SelectedTagIds" value="@tag.Id" id="tag_@tag.Id" @(Model.SelectedTagIds.Contains(tag.Id) ? "checked" : null) />
-                                    <label class="form-check-label" for="tag_@tag.Id">@tag.Name</label>
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-
-                <div class="article-form-panel mb-3">
                     <label asp-for="NewTags" class="form-label">Them tags moi (khong bat buoc)</label>
                     <input asp-for="NewTags" id="new-tags-input" type="hidden" />
                     <div class="input-group mb-2">
-                        <input id="new-tag-entry" type="text" class="form-control" placeholder="Nhap tag bat ky, vi du: world-cup" />
+                        <input id="new-tag-entry" type="text" class="form-control" list="existing-tags-list-edit" placeholder="Nhap tag, vi du: #bongda" />
                         <button id="add-tag-button" type="button" class="btn btn-outline-primary">Them tag</button>
                     </div>
+                    <datalist id="existing-tags-list-edit">
+                        @foreach (var tag in Model.AvailableTags)
+                        {
+                            <option value="#@tag.Name"></option>
+                        }
+                    </datalist>
+                    <div class="small text-muted mb-1">Tags se them:</div>
                     <div id="new-tags-chip-list" class="d-flex flex-wrap gap-2"></div>
-                    <div class="form-text">Nhan Enter hoac bam Them tag de tao tag moi theo y ban. Co the bo trong.</div>
+                    <div class="form-text">Tag phai bat dau bang #. Khi go, he thong se goi y tu danh sach tag da co.</div>
                     <span asp-validation-for="NewTags" class="text-danger"></span>
                 </div>
             </aside>
@@ -106,7 +106,25 @@
 
             const tagSet = new Set();
 
-            const normalizeTag = (value) => (value || '').trim().replace(/\s+/g, ' ');
+            const normalizeTag = (value) => {
+                return (value || '')
+                    .trim()
+                    .replace(/^#+/, '')
+                    .trim()
+                    .replace(/\s+/g, ' ')
+                    .toLocaleLowerCase('vi-VN');
+            };
+
+            const enforceHashtagPrefix = () => {
+                const current = (newTagEntry.value || '').trimStart();
+                if (!current) {
+                    return;
+                }
+
+                if (!current.startsWith('#')) {
+                    newTagEntry.value = `#${current.replace(/^#+/, '')}`;
+                }
+            };
 
             const syncTagInput = () => {
                 newTagsInput.value = Array.from(tagSet).join(', ');
@@ -116,12 +134,44 @@
                 chipList.innerHTML = '';
                 Array.from(tagSet).forEach((tag) => {
                     const chip = document.createElement('span');
-                    chip.className = 'badge text-bg-secondary d-inline-flex align-items-center gap-2';
-                    chip.textContent = tag;
+                    chip.className = 'tag-editor-chip';
+
+                    const label = document.createElement('span');
+                    label.className = 'tag-editor-chip-label';
+                    label.textContent = `#${tag}`;
+                    chip.appendChild(label);
+
+                    const editButton = document.createElement('button');
+                    editButton.type = 'button';
+                    editButton.className = 'btn btn-sm btn-outline-light tag-editor-chip-btn';
+                    editButton.textContent = 'Sua';
+                    editButton.addEventListener('click', () => {
+                        const edited = prompt('Sua tag:', `#${tag}`);
+                        if (edited === null) {
+                            return;
+                        }
+
+                        const normalized = normalizeTag(edited);
+                        if (!normalized) {
+                            return;
+                        }
+
+                        const key = normalized.toLowerCase();
+                        const duplicate = [...tagSet].some(existing => existing.toLowerCase() === key && existing.toLowerCase() !== tag.toLowerCase());
+                        if (duplicate) {
+                            return;
+                        }
+
+                        tagSet.delete(tag);
+                        tagSet.add(normalized);
+                        renderTagChips();
+                        syncTagInput();
+                    });
 
                     const removeButton = document.createElement('button');
                     removeButton.type = 'button';
-                    removeButton.className = 'btn-close btn-close-white btn-close-xs';
+                    removeButton.className = 'btn btn-sm btn-outline-light tag-editor-chip-btn';
+                    removeButton.textContent = 'Xoa';
                     removeButton.setAttribute('aria-label', 'Xoa tag');
                     removeButton.addEventListener('click', () => {
                         tagSet.delete(tag);
@@ -129,6 +179,7 @@
                         syncTagInput();
                     });
 
+                    chip.appendChild(editButton);
                     chip.appendChild(removeButton);
                     chipList.appendChild(chip);
                 });
@@ -159,6 +210,9 @@
                 newTagEntry.value = '';
                 newTagEntry.focus();
             });
+
+            newTagEntry.addEventListener('input', enforceHashtagPrefix);
+            newTagEntry.addEventListener('blur', enforceHashtagPrefix);
 
             newTagEntry.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {

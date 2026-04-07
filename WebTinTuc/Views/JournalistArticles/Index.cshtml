@@ -56,6 +56,7 @@
                 <table class="table table-hover align-middle mb-0 manager-table">
                     <thead>
                         <tr>
+                            <th>Thumb</th>
                             <th>Tieu de</th>
                             <th>Tom tat</th>
                             <th class="text-center">Tags</th>
@@ -69,6 +70,9 @@
                         @foreach (var article in Model)
                         {
                             <tr>
+                                <td>
+                                    <img src="@article.ThumbnailUrl" alt="@article.Title" class="manager-thumb" loading="lazy" />
+                                </td>
                                 <td class="fw-semibold">@article.Title</td>
                                 <td class="text-muted">@article.Summary</td>
                                 <td class="text-center">@(string.IsNullOrWhiteSpace(article.TagsText) ? "Khong co" : article.TagsText)</td>

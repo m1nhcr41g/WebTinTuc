@@ -11,4 +11,6 @@ public class AuthAccount
     public string PasswordHash { get; set; } = string.Empty;
 
     public string Role { get; set; } = "User";
+
+    public string? AvatarPath { get; set; }
 }

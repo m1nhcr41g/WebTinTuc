@@ -13,6 +13,11 @@ public class JournalistArticlesController : Controller
 {
     private readonly JournalistArticleStore _articleStore;
     private readonly IWebHostEnvironment _environment;
+    private static readonly HashSet<string> AllowedThumbnailExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp"
+    };
+    private const long ThumbnailMaxSize = 4 * 1024 * 1024;
 
     public JournalistArticlesController(JournalistArticleStore articleStore, IWebHostEnvironment environment)
     {
@@ -46,6 +51,25 @@ public class JournalistArticlesController : Controller
     public async Task<IActionResult> Create(ArticleFormViewModel model)
     {
         model.Content = (model.Content ?? string.Empty).Trim();
+        model.ThumbnailUrl = (model.ThumbnailUrl ?? string.Empty).Trim();
+
+        if (model.ThumbnailFile is null || model.ThumbnailFile.Length == 0)
+        {
+            ModelState.AddModelError(nameof(model.ThumbnailFile), "Vui long tai anh thumbnail tu may.");
+        }
+        else
+        {
+            var thumbnailValidationError = ValidateThumbnailFile(model.ThumbnailFile);
+            if (thumbnailValidationError is not null)
+            {
+                ModelState.AddModelError(nameof(model.ThumbnailFile), thumbnailValidationError);
+            }
+            else
+            {
+                model.ThumbnailUrl = await SaveThumbnailAsync(model.ThumbnailFile);
+            }
+        }
+
         if (IsHtmlContentEmpty(model.Content))
         {
             ModelState.AddModelError(nameof(model.Content), "Vui long nhap noi dung bai viet hoac chen it nhat mot hinh anh.");
@@ -100,6 +124,7 @@ public class JournalistArticlesController : Controller
             CategoryId = article.CategoryId,
             Title = article.Title,
             Summary = article.Summary,
+            ThumbnailUrl = article.ThumbnailUrl,
             Content = article.Content
         };
 
@@ -115,6 +140,38 @@ public class JournalistArticlesController : Controller
     {
         model.Id = id;
         model.Content = (model.Content ?? string.Empty).Trim();
+        model.ThumbnailUrl = (model.ThumbnailUrl ?? string.Empty).Trim();
+
+        var accountId = GetCurrentAccountId();
+        if (accountId is null)
+        {
+            return Challenge();
+        }
+
+        var existingArticle = await _articleStore.GetByIdAsync(id, accountId.Value);
+        if (existingArticle is null)
+        {
+            return NotFound();
+        }
+
+        if (model.ThumbnailFile is not null && model.ThumbnailFile.Length > 0)
+        {
+            var thumbnailValidationError = ValidateThumbnailFile(model.ThumbnailFile);
+            if (thumbnailValidationError is not null)
+            {
+                ModelState.AddModelError(nameof(model.ThumbnailFile), thumbnailValidationError);
+            }
+            else
+            {
+                var savedThumbnailUrl = await SaveThumbnailAsync(model.ThumbnailFile);
+                DeleteOldThumbnailIfExists(existingArticle.ThumbnailUrl, savedThumbnailUrl);
+                model.ThumbnailUrl = savedThumbnailUrl;
+            }
+        }
+        else
+        {
+            model.ThumbnailUrl = existingArticle.ThumbnailUrl;
+        }
 
         if (IsHtmlContentEmpty(model.Content))
         {
@@ -125,12 +182,6 @@ public class JournalistArticlesController : Controller
         {
             await PopulateFormOptionsAsync(model);
             return View(model);
-        }
-
-        var accountId = GetCurrentAccountId();
-        if (accountId is null)
-        {
-            return Challenge();
         }
 
         bool updated;
@@ -260,5 +311,56 @@ public class JournalistArticlesController : Controller
         var stripped = Regex.Replace(html, "<[^>]*>", string.Empty);
         stripped = System.Net.WebUtility.HtmlDecode(stripped).Replace("\u00A0", " ").Trim();
         return string.IsNullOrWhiteSpace(stripped);
+    }
+
+    private static string? ValidateThumbnailFile(IFormFile thumbnailFile)
+    {
+        if (thumbnailFile.Length > ThumbnailMaxSize)
+        {
+            return "Kich thuoc thumbnail toi da la 4MB.";
+        }
+
+        var extension = Path.GetExtension(thumbnailFile.FileName);
+        if (!AllowedThumbnailExtensions.Contains(extension))
+        {
+            return "Thumbnail chi chap nhan JPG, PNG, WEBP.";
+        }
+
+        return null;
+    }
+
+    private async Task<string> SaveThumbnailAsync(IFormFile thumbnailFile)
+    {
+        var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "thumbnails");
+        Directory.CreateDirectory(uploadsFolder);
+
+        var extension = Path.GetExtension(thumbnailFile.FileName).ToLowerInvariant();
+        var fileName = $"thumb_{Guid.NewGuid():N}{extension}";
+        var filePath = Path.Combine(uploadsFolder, fileName);
+
+        await using var stream = System.IO.File.Create(filePath);
+        await thumbnailFile.CopyToAsync(stream);
+
+        return $"/uploads/thumbnails/{fileName}";
+    }
+
+    private void DeleteOldThumbnailIfExists(string? oldThumbnailUrl, string newThumbnailUrl)
+    {
+        if (string.IsNullOrWhiteSpace(oldThumbnailUrl) || string.Equals(oldThumbnailUrl, newThumbnailUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!oldThumbnailUrl.StartsWith("/uploads/thumbnails/", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var relativePath = oldThumbnailUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+        var physicalPath = Path.Combine(_environment.WebRootPath, relativePath);
+        if (System.IO.File.Exists(physicalPath))
+        {
+            System.IO.File.Delete(physicalPath);
+        }
     }
 }

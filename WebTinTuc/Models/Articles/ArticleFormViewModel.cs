@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace WebTinTuc.Models.Articles;
 
@@ -17,6 +18,14 @@ public class ArticleFormViewModel
     [Display(Name = "Tom tat")]
     [StringLength(500, ErrorMessage = "Tom tat toi da 500 ky tu")]
     public string? Summary { get; set; }
+
+    [Display(Name = "Anh thumbnail")]
+    [RegularExpression("^(https?://|/).+", ErrorMessage = "Link thumbnail khong hop le")]
+    [StringLength(600, ErrorMessage = "Link thumbnail toi da 600 ky tu")]
+    public string ThumbnailUrl { get; set; } = string.Empty;
+
+    [Display(Name = "Tai anh thumbnail")]
+    public IFormFile? ThumbnailFile { get; set; }
 
     [Display(Name = "Noi dung")]
     [Required(ErrorMessage = "Vui long nhap noi dung")]
