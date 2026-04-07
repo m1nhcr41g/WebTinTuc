@@ -1,0 +1,77 @@
+@model WebTinTuc.Models.Auth.ManageAccountViewModel
+
+@{
+    ViewData["Title"] = "Quan li tai khoan";
+}
+
+<div class="auth-shell">
+    <div class="auth-card">
+        <h1 class="h4 mb-3">Quan li tai khoan</h1>
+
+        @if (TempData["SuccessMessage"] is string successMessage)
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+
+        <form asp-action="Manage" method="post" enctype="multipart/form-data">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+            <div class="mb-3">
+                <label asp-for="AvatarFile" class="form-label">Avatar</label>
+                @if (!string.IsNullOrWhiteSpace(Model.CurrentAvatarPath))
+                {
+                    <div class="mb-2">
+                        <img src="@Model.CurrentAvatarPath" alt="Avatar hien tai" class="manage-avatar-preview" />
+                    </div>
+                }
+                <input asp-for="AvatarFile" class="form-control" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+                <span asp-validation-for="AvatarFile" class="text-danger"></span>
+                <small class="text-muted">Dung luong toi da 2MB, dinh dang: JPG, PNG, WEBP.</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="FullName" class="form-label"></label>
+                <input asp-for="FullName" class="form-control" autocomplete="name" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" autocomplete="email" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Vai tro</label>
+                <input value="@Model.Role" class="form-control" readonly />
+            </div>
+
+            <hr />
+            <p class="text-muted mb-2">Doi mat khau (khong bat buoc)</p>
+
+            <div class="mb-3">
+                <label asp-for="CurrentPassword" class="form-label"></label>
+                <input asp-for="CurrentPassword" class="form-control" autocomplete="current-password" />
+                <span asp-validation-for="CurrentPassword" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="NewPassword" class="form-label"></label>
+                <input asp-for="NewPassword" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="NewPassword" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="ConfirmNewPassword" class="form-label"></label>
+                <input asp-for="ConfirmNewPassword" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Luu thay doi</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

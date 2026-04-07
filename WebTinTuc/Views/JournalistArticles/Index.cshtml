@@ -1,0 +1,95 @@
+@model IReadOnlyList<WebTinTuc.Models.Articles.JournalistArticle>
+
+@{
+    ViewData["Title"] = "Quan ly bai viet";
+}
+
+<div class="manager-page">
+    <section class="manager-hero mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h1 class="h3 mb-1">Quan ly bai viet</h1>
+            <p class="mb-0 text-light-emphasis">Theo doi bai viet da dang, luot xem va cap nhat noi dung nhanh.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary">Viet bai moi</a>
+    </section>
+
+    <section class="manager-stats mb-4">
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <div class="manager-stat-card">
+                    <div class="text-muted small mb-1">Tong bai viet</div>
+                    <div class="h4 mb-0">@Model.Count</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="manager-stat-card">
+                    <div class="text-muted small mb-1">Bai moi nhat</div>
+                    <div class="small mb-0">@(Model.FirstOrDefault()?.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Chua co")</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="manager-stat-card">
+                    <div class="text-muted small mb-1">Tong luot xem</div>
+                    <div class="h4 mb-0">@Model.Sum(x => x.ViewCount)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+
+    @if (Model.Count == 0)
+    {
+        <div class="manager-empty text-center py-5">
+            <h2 class="h5">Ban chua co bai viet nao</h2>
+            <p class="text-muted mb-3">Tao bai viet dau tien de bat dau quan ly noi dung cho trang tin tuc.</p>
+            <a asp-action="Create" class="btn btn-primary">Tao bai viet dau tien</a>
+        </div>
+    }
+    else
+    {
+        <div class="manager-table-wrap">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 manager-table">
+                    <thead>
+                        <tr>
+                            <th>Thumb</th>
+                            <th>Tieu de</th>
+                            <th>Tom tat</th>
+                            <th class="text-center">Tags</th>
+                            <th class="text-center">Luot xem</th>
+                            <th class="text-center">Ngay tao</th>
+                            <th class="text-center">Cap nhat</th>
+                            <th class="text-end">Thao tac</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var article in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <img src="@article.ThumbnailUrl" alt="@article.Title" class="manager-thumb" loading="lazy" />
+                                </td>
+                                <td class="fw-semibold">@article.Title</td>
+                                <td class="text-muted">@article.Summary</td>
+                                <td class="text-center">@(string.IsNullOrWhiteSpace(article.TagsText) ? "Khong co" : article.TagsText)</td>
+                                <td class="text-center fw-semibold">@article.ViewCount</td>
+                                <td class="text-center small text-muted">@article.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                <td class="text-center small text-muted">@(article.UpdatedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a asp-action="Edit" asp-route-id="@article.Id" class="btn btn-outline-primary">Sua</a>
+                                        <a asp-action="Delete" asp-route-id="@article.Id" class="btn btn-outline-danger">Xoa</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
