@@ -33,3 +33,6 @@ TestResults/
 coverage/
 *.coverage
 *.coveragexml
+
+# Temporary git backups
+**/.git_backup_inner_*/
