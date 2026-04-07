@@ -1,0 +1,51 @@
+@model WebTinTuc.Models.Preferences.UserPreferencesSetupViewModel
+
+@{
+    ViewData["Title"] = "So thich cua ban";
+}
+
+<h1 class="h3 mb-3">Chon doi bong va giai dau yeu thich</h1>
+<p class="text-muted">He thong se goi y bai viet lien quan den nhung lua chon nay.</p>
+
+<form asp-action="Setup" method="post">
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header fw-semibold">Doi bong yeu thich</div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var team in Model.TeamOptions)
+                        {
+                            <div class="form-check border rounded px-2 py-1">
+                                <input class="form-check-input" type="checkbox" name="SelectedTeamIds" value="@team.Id" id="team_@team.Id" @(Model.SelectedTeamIds.Contains(team.Id) ? "checked" : null) />
+                                <label class="form-check-label" for="team_@team.Id">@team.Name</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header fw-semibold">Giai dau yeu thich</div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var league in Model.LeagueOptions)
+                        {
+                            <div class="form-check border rounded px-2 py-1">
+                                <input class="form-check-input" type="checkbox" name="SelectedLeagueIds" value="@league.Id" id="league_@league.Id" @(Model.SelectedLeagueIds.Contains(league.Id) ? "checked" : null) />
+                                <label class="form-check-label" for="league_@league.Id">@league.Name</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Luu so thich</button>
+        <a asp-controller="News" asp-action="Index" class="btn btn-outline-secondary">Bo qua</a>
+    </div>
+</form>

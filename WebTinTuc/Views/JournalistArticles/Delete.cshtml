@@ -1,0 +1,23 @@
+@model WebTinTuc.Models.Articles.JournalistArticle
+
+@{
+    ViewData["Title"] = "Xoa bai viet";
+}
+
+<h1 class="h3 mb-3 text-danger">Xac nhan xoa bai viet</h1>
+
+<div class="manager-delete-card mb-3">
+    <div class="manager-delete-head">Canh bao</div>
+    <div class="manager-delete-body">
+        <h2 class="h5">@Model.Title</h2>
+        <p class="mb-2"><strong>Tom tat:</strong> @Model.Summary</p>
+        <p class="mb-0 text-muted">Tao luc: @Model.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+    </div>
+</div>
+
+<form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">Xoa bai</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Huy</a>
+    </div>
+</form>

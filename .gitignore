@@ -1,0 +1,43 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+out/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / ReSharper
+.idea/
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# NuGet
+*.nupkg
+packages/
+!**/packages/build/
+
+# Logs
+*.log
+logs/
+
+# Environment and local secrets
+.env
+.env.*
+secrets.json
+
+# Local debug/test artifacts in this project
+WebTinTuc/cookies_debug2.txt
+WebTinTuc/cookies_test2.txt
+WebTinTuc/create_debug_resp.html
+
+# Generated/static user uploads
+WebTinTuc/wwwroot/uploads/*
+!WebTinTuc/wwwroot/uploads/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db

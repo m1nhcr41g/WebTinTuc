@@ -1,0 +1,100 @@
+@model WebTinTuc.Models.Articles.NewsDetailsViewModel
+
+@{
+    ViewData["Title"] = Model.Article.Title;
+}
+
+<article>
+    <header class="mb-3">
+        <h1 class="h2">@Model.Article.Title</h1>
+        <div class="text-muted small d-flex gap-3 flex-wrap">
+            <span>Tac gia: @Model.Article.AuthorName</span>
+            <span>Dang luc: @Model.Article.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+            <span>@Model.Article.ViewCount luot xem</span>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.Article.TagsText))
+        {
+            <p class="mt-2 mb-0"><strong>Tags:</strong> @Model.Article.TagsText</p>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Article.Summary))
+    {
+        <p class="lead">@Model.Article.Summary</p>
+    }
+
+    <div class="article-content">@Html.Raw(Model.Article.Content)</div>
+</article>
+
+<section class="mt-4" id="interactions">
+    <h2 class="h5 mb-3">Tuong tac</h2>
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        @foreach (var reaction in Model.Reactions)
+        {
+            if (Model.CanInteract)
+            {
+                <form asp-action="React" asp-route-slug="@Model.Article.Slug" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="reactionType" value="@reaction.Type" />
+                    <button type="submit" class="btn btn-sm @(reaction.IsSelected ? "btn-primary" : "btn-outline-primary")">
+                        @reaction.Label (@reaction.Count)
+                    </button>
+                </form>
+            }
+            else
+            {
+                <span class="badge text-bg-light border">@reaction.Label (@reaction.Count)</span>
+            }
+        }
+    </div>
+
+    @if (!Model.CanInteract)
+    {
+        <p class="small text-muted">Dang nhap tai khoan User de binh luan va tha tuong tac.</p>
+    }
+</section>
+
+<section class="mt-4" id="comments">
+    <h2 class="h5 mb-3">Binh luan (@Model.Comments.Count)</h2>
+
+    @if (TempData["CommentError"] is string commentError)
+    {
+        <div class="alert alert-warning">@commentError</div>
+    }
+
+    @if (Model.CanInteract)
+    {
+        <form asp-action="AddComment" asp-route-slug="@Model.Article.Slug" method="post" class="mb-3">
+            @Html.AntiForgeryToken()
+            <div class="mb-2">
+                <textarea name="newComment" class="form-control" rows="3" placeholder="Nhap binh luan cua ban..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Gui binh luan</button>
+        </form>
+    }
+
+    @if (Model.Comments.Count == 0)
+    {
+        <div class="alert alert-light border">Chua co binh luan nao.</div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+            @foreach (var comment in Model.Comments)
+            {
+                <div class="border rounded p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>@comment.AuthorName</strong>
+                        <span class="small text-muted">@comment.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                    </div>
+                    <div style="white-space: pre-line;">@comment.Content</div>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+<div class="mt-4">
+    <a asp-action="Index" class="btn btn-outline-secondary">Quay lai trang tin tuc</a>
+</div>
