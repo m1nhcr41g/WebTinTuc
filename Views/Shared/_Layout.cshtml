@@ -1,0 +1,136 @@
+﻿@inject WebTinTuc.Services.Articles.JournalistArticleStore ArticleStore
+@{
+    var headerCategories = await ArticleStore.GetAllCategoriesAsync();
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - WebTinTuc</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/WebTinTuc.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg newsroom-navbar">
+            <div class="container-fluid newsroom-navbar-inner">
+                <a class="newsroom-logo" asp-area="" asp-controller="Home" asp-action="Index">WEBTINTUC</a>
+                <button class="navbar-toggler newsroom-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#newsroomNav" aria-controls="newsroomNav"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="newsroomNav">
+                    <ul class="navbar-nav me-auto newsroom-links">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Standings" asp-action="Index">Bang xep hang</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Results" asp-action="Index">Ket qua</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Tin tuc</a>
+                            <ul class="dropdown-menu newsroom-dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" asp-controller="News" asp-action="Index">Tat ca</a>
+                                </li>
+                                @foreach (var category in headerCategories)
+                                {
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="News" asp-action="Index" asp-route-category="@category.Slug">@category.Name</a>
+                                    </li>
+                                }
+                            </ul>
+                        </li>
+                        @if (User.IsInRole("Journalist"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="JournalistArticles" asp-action="Index">Quan ly bai viet</a>
+                            </li>
+                        }
+                        @if (User.IsInRole("User"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="UserPreferences" asp-action="Setup">So thich cua toi</a>
+                            </li>
+                        }
+                    </ul>
+                    <ul class="navbar-nav newsroom-auth-links">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            var displayName = User.Identity.Name ?? "User";
+                            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? string.Empty;
+                            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
+                            var avatarPath = User.FindFirst("avatar_path")?.Value;
+                            var initials = string.Concat(displayName
+                                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                                .Take(2)
+                                .Select(part => char.ToUpperInvariant(part[0])));
+                            if (string.IsNullOrWhiteSpace(initials))
+                            {
+                                initials = "U";
+                            }
+
+                            <li class="nav-item dropdown account-dropdown">
+                                <button class="btn nav-link account-avatar-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" aria-label="Mo menu tai khoan">
+                                    @if (!string.IsNullOrWhiteSpace(avatarPath))
+                                    {
+                                        <img src="@avatarPath" alt="Avatar" class="account-avatar-img" />
+                                    }
+                                    else
+                                    {
+                                        <span class="account-avatar-badge">@initials</span>
+                                    }
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-end account-dropdown-menu">
+                                    <div class="account-dropdown-head">
+                                        <div class="account-name">@displayName</div>
+                                        @if (!string.IsNullOrWhiteSpace(email))
+                                        {
+                                            <div class="account-email">@email</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(role))
+                                        {
+                                            <div class="account-role">@role</div>
+                                        }
+                                    </div>
+                                    <div class="account-dropdown-actions">
+                                        <a class="dropdown-item" asp-controller="Account" asp-action="Manage">Quan li tai khoan</a>
+                                        <form asp-controller="Auth" asp-action="Logout" method="post" class="d-block account-logout-form">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="dropdown-item account-logout-btn">Dang xuat</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Auth" asp-action="Login">Log in</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2026 - WebTinTuc
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

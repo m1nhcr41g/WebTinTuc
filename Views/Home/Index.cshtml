@@ -1,0 +1,222 @@
+﻿@model WebTinTuc.Models.Home.HomeDashboardViewModel
+
+@{
+    ViewData["Title"] = "Trang chu";
+
+    string[] ExtractTags(string? tagsText)
+    {
+        return (tagsText ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(tag => tag.Trim())
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(3)
+            .ToArray();
+    }
+}
+
+<section class="home-hero mb-4">
+    <div>
+        <p class="home-kicker mb-2">Football Hub</p>
+        <h1 class="home-title mb-3">WebTinTuc Sports Center</h1>
+        <p class="home-subtitle mb-4">
+            Trang chu da san sang de ket noi REST API cho Bang xep hang va Lich thi dau.
+            Chi can cap nhat endpoint la co du lieu thuc.
+        </p>
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-primary" href="#standings-panel">Bang xep hang</a>
+            <a class="btn btn-outline-light" href="#fixtures-panel">Lich thi dau</a>
+        </div>
+    </div>
+</section>
+
+<section class="row g-4">
+    <div class="col-12 col-xl-7" id="standings-panel">
+        <div class="sport-card h-100">
+            <div class="sport-card-header d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0">Bang xep hang</h2>
+                <span class="sport-chip">API ready</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Doi</th>
+                            <th>Tran</th>
+                            <th>Hieu so</th>
+                            <th>Diem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="standings-body">
+                        <tr>
+                            <td colspan="5" class="text-center text-secondary py-4">Dang cho ket noi API Bang xep hang...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-5" id="fixtures-panel">
+        <div class="sport-card h-100">
+            <div class="sport-card-header d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0">Lich thi dau</h2>
+                <span class="sport-chip">API ready</span>
+            </div>
+            <div id="fixtures-list" class="d-flex flex-column gap-2 p-3">
+                <div class="fixture-item placeholder-item">Dang cho ket noi API Lich thi dau...</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="home-news-grid mt-4">
+    <div class="home-news-block">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h3 class="h5 mb-0">Tin hot</h3>
+            <a asp-controller="News" asp-action="Index" class="small">Xem them</a>
+        </div>
+
+        @if (Model.HotArticles.Count == 0)
+        {
+            <div class="text-secondary small">Chua co bai viet noi bat.</div>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-2">
+                @foreach (var article in Model.HotArticles)
+                {
+                    <article class="home-news-item">
+                        <div class="d-flex gap-2 align-items-start">
+                            <img src="@article.ThumbnailUrl" alt="@article.Title" class="home-news-thumb" loading="lazy" />
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold text-dark">
+                                    <a asp-controller="News" asp-action="Details" asp-route-slug="@article.Slug" class="text-decoration-none">@article.Title</a>
+                                </div>
+                                <div class="tag-chip-wrap mb-1">
+                                    @foreach (var tag in ExtractTags(article.TagsText))
+                                    {
+                                        <a asp-controller="News" asp-action="Index" asp-route-tag="@tag" class="tag-chip">#@tag</a>
+                                    }
+                                </div>
+                                <div class="small text-secondary d-flex justify-content-between">
+                                    <span>@article.ViewCount luot xem</span>
+                                    <span>@article.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="home-news-block">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h3 class="h5 mb-0">Tin moi nhat</h3>
+            <a asp-controller="News" asp-action="Index" class="small">Xem them</a>
+        </div>
+
+        @if (Model.LatestArticles.Count == 0)
+        {
+            <div class="text-secondary small">Chua co bai viet moi.</div>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-2">
+                @foreach (var article in Model.LatestArticles)
+                {
+                    <article class="home-news-item">
+                        <div class="d-flex gap-2 align-items-start">
+                            <img src="@article.ThumbnailUrl" alt="@article.Title" class="home-news-thumb" loading="lazy" />
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold text-dark">
+                                    <a asp-controller="News" asp-action="Details" asp-route-slug="@article.Slug" class="text-decoration-none">@article.Title</a>
+                                </div>
+                                <div class="tag-chip-wrap mb-1">
+                                    @foreach (var tag in ExtractTags(article.TagsText))
+                                    {
+                                        <a asp-controller="News" asp-action="Index" asp-route-tag="@tag" class="tag-chip">#@tag</a>
+                                    }
+                                </div>
+                                <div class="small text-secondary d-flex justify-content-between">
+                                    <span>@article.TagsText</span>
+                                    <span>@article.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (function () {
+            const standingsEndpoint = '';
+            const fixturesEndpoint = '';
+
+            const standingsBody = document.getElementById('standings-body');
+            const fixturesList = document.getElementById('fixtures-list');
+
+            const renderStandings = (rows) => {
+                if (!rows || rows.length === 0) {
+                    standingsBody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-4">Chua co du lieu bang xep hang.</td></tr>';
+                    return;
+                }
+
+                standingsBody.innerHTML = rows.map((item, idx) => `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td>${item.team || '-'}</td>
+                        <td>${item.played ?? '-'}</td>
+                        <td>${item.goalDiff ?? '-'}</td>
+                        <td><strong>${item.points ?? '-'}</strong></td>
+                    </tr>
+                `).join('');
+            };
+
+            const renderFixtures = (matches) => {
+                if (!matches || matches.length === 0) {
+                    fixturesList.innerHTML = '<div class="fixture-item placeholder-item">Chua co du lieu lich thi dau.</div>';
+                    return;
+                }
+
+                fixturesList.innerHTML = matches.map((match) => `
+                    <div class="fixture-item">
+                        <div class="small text-secondary mb-1">${match.time || ''}</div>
+                        <div class="d-flex justify-content-between">
+                            <span>${match.home || '-'}</span>
+                            <span class="text-secondary">vs</span>
+                            <span>${match.away || '-'}</span>
+                        </div>
+                    </div>
+                `).join('');
+            };
+
+            const loadData = async () => {
+                try {
+                    if (standingsEndpoint) {
+                        const standingsRes = await fetch(standingsEndpoint);
+                        const standingsData = await standingsRes.json();
+                        renderStandings(standingsData);
+                    }
+
+                    if (fixturesEndpoint) {
+                        const fixturesRes = await fetch(fixturesEndpoint);
+                        const fixturesData = await fixturesRes.json();
+                        renderFixtures(fixturesData);
+                    }
+                } catch (error) {
+                    standingsBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Khong tai duoc du lieu API.</td></tr>';
+                    fixturesList.innerHTML = '<div class="fixture-item text-danger">Khong tai duoc du lieu API.</div>';
+                }
+            };
+
+            loadData();
+        })();
+    </script>
+}
